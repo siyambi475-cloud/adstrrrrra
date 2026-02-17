@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoneyTech - Adsterra Pro</title>
+    
+    <script src="https://arrivespeck.com/33/90/67/339067a0efd03840eac647b926f6fa4d.js"></script>
+
+    <style>
+        :root { --main: #00ff88; --bg: #121212; --card: #1e1e1e; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; padding: 20px; text-align: center; padding-bottom: 100px; }
+        .card { background: var(--card); padding: 25px; border-radius: 20px; border: 1px solid #333; margin-bottom: 20px; }
+        .balance { font-size: 40px; color: var(--main); font-weight: bold; margin: 10px 0; }
+        .btn { width: 100%; padding: 16px; margin: 10px 0; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 16px; transition: 0.3s; }
+        input, select { width: 92%; padding: 14px; margin: 8px 0; border-radius: 10px; border: none; background: #2c2c2c; color: white; }
+        #auth-section, #app-content, #withdraw-section { display: none; }
+        .timer-text { color: #ffeb3b; font-size: 14px; display: none; margin-top: 10px; }
+        .ad-container { margin-top: 20px; display: flex; justify-content: center; min-height: 60px; }
+    </style>
+</head>
+<body>
+
+    <div id="auth-section" class="card">
+        <h2>MoneyTech Login</h2>
+        <input type="email" id="email" placeholder="Email">
+        <input type="password" id="password" placeholder="Password">
+        <button class="btn" style="background:var(--main); color:black;" onclick="handleSignUp()">Create Account</button>
+        <button class="btn" style="background:#444; color:white;" onclick="handleLogin()">Login</button>
+    </div>
+
+    <div id="app-content">
+        <div class="card">
+            <p style="color:#888;">আপনার ব্যালেন্স</p>
+            <div class="balance">$<span id="user-balance">0.000</span></div>
+            <p id="user-email" style="font-size:10px; color:#555;"></p>
+        </div>
+
+        <div class="card">
+            <h3>ডেইলি টাস্ক</h3>
+            <p style="font-size: 12px; color: #aaa;">বাটনে ক্লিক করে ১৫ সেকেন্ড অপেক্ষা করুন।</p>
+            
+            <button id="task1-btn" class="btn" style="background:#27ae60; color:white;" onclick="startTask('task1', 0.005)">Claim Reward 1 ($0.005)</button>
+            <p id="task1-timer" class="timer-text">অপেক্ষা করুন: <span id="secs1">15</span> সেকেন্ড</p>
+
+            <button id="task2-btn" class="btn" style="background:#f39c12; color:white;" onclick="startTask('task2', 0.003)">Claim Reward 2 ($0.003)</button>
+            <p id="task2-timer" class="timer-text">অপেক্ষা করুন: <span id="secs2">15</span> সেকেন্ড</p>
+        </div>
+
+        <button class="btn" style="background:#3498db; color:white;" onclick="toggleWithdraw()">Withdraw Money</button>
+
+        <div id="withdraw-section" class="card">
+            <h3>টাকা উত্তোলন</h3>
+            <input type="number" id="w-amount" placeholder="পরিমাণ (Min $1.0)">
+            <select id="w-method"><option value="Bkash">Bkash</option><option value="Nagad">Nagad</option></select>
+            <input type="text" id="w-number" placeholder="নম্বর দিন">
+            <button class="btn" style="background:var(--main); color:black;" onclick="submitWithdraw()">Confirm</button>
+        </div>
+
+        <div class="ad-container">
+            <script type="text/javascript">
+                atOptions = {
+                    'key' : '0ad7bfc68209f75e68f51372c9acc69c',
+                    'format' : 'iframe',
+                    'height' : 60,
+                    'width' : 468,
+                    'params' : {}
+                };
+            </script>
+            <script type="text/javascript" src="https://arrivespeck.com/0ad7bfc68209f75e68f51372c9acc69c/invoke.js"></script>
+        </div>
+
+        <button onclick="logout()" style="color:#666; background:none; border:none; margin-top:20px; cursor:pointer;">Logout</button>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, updateDoc, increment, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB5IW-F1VWTkxgnhVvNhBBDH-4mNkdk1rc",
+            authDomain: "adstrrrra.firebaseapp.com",
+            projectId: "adstrrrra",
+            storageBucket: "adstrrrra.firebasestorage.app",
+            messagingSenderId: "986314217650",
+            appId: "1:986314217650:web:375cd2e6fa12f0743f91ab"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        let balance = 0;
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                document.getElementById('auth-section').style.display = 'none';
+                document.getElementById('app-content').style.display = 'block';
+                document.getElementById('user-email').innerText = user.email;
+                fetchData(user.uid);
+            } else {
+                document.getElementById('auth-section').style.display = 'block';
+                document.getElementById('app-content').style.display = 'none';
+            }
+        });
+
+        async function fetchData(uid) {
+            const snap = await getDoc(doc(db, "users", uid));
+            if (snap.exists()) {
+                balance = snap.data().balance;
+                document.getElementById('user-balance').innerText = balance.toFixed(3);
+            }
+        }
+
+        // টাস্ক লজিক (No Direct Link)
+        window.startTask = (id, reward) => {
+            const btn = document.getElementById(id + '-btn');
+            const timerText = document.getElementById(id + '-timer');
+            const secsSpan = document.getElementById(id === 'task1' ? 'secs1' : 'secs2');
+            
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            timerText.style.display = 'block';
+            
+            let count = 15;
+            const interval = setInterval(async () => {
+                count--;
+                secsSpan.innerText = count;
+                if (count <= 0) {
+                    clearInterval(interval);
+                    if (auth.currentUser) {
+                        await updateDoc(doc(db, "users", auth.currentUser.uid), { balance: increment(reward) });
+                        fetchData(auth.currentUser.uid);
+                        alert("অভিনন্দন! রিওয়ার্ড যোগ হয়েছে।");
+                    }
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    timerText.style.display = 'none';
+                    secsSpan.innerText = '15';
+                }
+            }, 1000);
+        };
+
+        window.submitWithdraw = async () => {
+            const amt = parseFloat(document.getElementById('w-amount').value), num = document.getElementById('w-number').value;
+            if (amt >= 1.0 && amt <= balance && num) {
+                await addDoc(collection(db, "withdrawals"), { uid: auth.currentUser.uid, email: auth.currentUser.email, amount: amt, method: document.getElementById('w-method').value, number: num, status: "Pending", time: serverTimestamp() });
+                await updateDoc(doc(db, "users", auth.currentUser.uid), { balance: increment(-amt) });
+                fetchData(auth.currentUser.uid);
+                alert("উইথড্র সফল হয়েছে!");
+            } else { alert("সঠিক তথ্য দিন।"); }
+        };
+
+        window.handleSignUp = async () => {
+            const e = document.getElementById('email').value, p = document.getElementById('password').value;
+            try {
+                const res = await createUserWithEmailAndPassword(auth, e, p);
+                await setDoc(doc(db, "users", res.user.uid), { balance: 0.0, email: e });
+            } catch (err) { alert(err.message); }
+        };
+
+        window.handleLogin = async () => {
+            const e = document.getElementById('email').value, p = document.getElementById('password').value;
+            try { await signInWithEmailAndPassword(auth, e, p); } catch (err) { alert("Login failed!"); }
+        };
+
+        window.logout = () => signOut(auth);
+        window.toggleWithdraw = () => { const s = document.getElementById('withdraw-section'); s.style.display = s.style.display === 'block' ? 'none' : 'block'; };
+    </script>
+</body>
+</html>
