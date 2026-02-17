@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoneyTech - Admin Panel</title>
+    <style>
+        :root { --main: #00ff88; --bg: #121212; --card: #1e1e1e; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .card { background: var(--card); padding: 20px; border-radius: 15px; border: 1px solid #333; margin-bottom: 20px; overflow-x: auto; }
+        h2 { color: var(--main); border-bottom: 2px solid #333; padding-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; min-width: 600px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #333; }
+        th { color: #888; text-transform: uppercase; font-size: 12px; }
+        .status-pending { color: #f39c12; font-weight: bold; }
+        .status-completed { color: var(--main); font-weight: bold; }
+        .btn-action { padding: 6px 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-right: 5px; }
+        .btn-approve { background: var(--main); color: #000; }
+        .btn-reject { background: #e74c3c; color: #fff; }
+        #login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .login-box { background: var(--card); padding: 40px; border-radius: 20px; text-align: center; border: 1px solid var(--main); }
+        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #444; background: #2c2c2c; color: white; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+
+    <div id="login-overlay">
+        <div class="login-box">
+            <h2>Admin Login</h2>
+            <input type="password" id="admin-pass" placeholder="Admin Password">
+            <button class="btn-action btn-approve" style="width: 100%; padding: 12px;" onclick="checkPass()">Login</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Admin Dashboard</h2>
+
+        <div class="card">
+            <h3>Withdrawal Requests</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Email</th>
+                        <th>Amount</th>
+                        <th>Method</th>
+                        <th>Number</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="withdraw-table">
+                    </tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h3>Registered Users</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Email</th>
+                        <th>Balance</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="user-table">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, getDocs, doc, updateDoc, deleteDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // Firebase Config (adstrrrra)
+        const firebaseConfig = {
+            apiKey: "AIzaSyB5IW-F1VWTkxgnhVvNhBBDH-4mNkdk1rc",
+            authDomain: "adstrrrra.firebaseapp.com",
+            projectId: "adstrrrra",
+            storageBucket: "adstrrrra.firebasestorage.app",
+            messagingSenderId: "986314217650",
+            appId: "1:986314217650:web:375cd2e6fa12f0743f91ab"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Simple Password Check (Change 'admin123' to your desired password)
+        window.checkPass = () => {
+            const pass = document.getElementById('admin-pass').value;
+            if (pass === "admin123") { 
+                document.getElementById('login-overlay').style.display = 'none';
+                loadData();
+            } else {
+                alert("Wrong Password!");
+            }
+        };
+
+        function loadData() {
+            // Load Withdrawals
+            const qWithdraw = query(collection(db, "withdrawals"), orderBy("time", "desc"));
+            onSnapshot(qWithdraw, (snapshot) => {
+                const table = document.getElementById('withdraw-table');
+                table.innerHTML = "";
+                snapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    const row = `<tr>
+                        <td>${data.email}</td>
+                        <td>$${data.amount.toFixed(3)}</td>
+                        <td>${data.method}</td>
+                        <td>${data.number}</td>
+                        <td class="${data.status === 'Pending' ? 'status-pending' : 'status-completed'}">${data.status}</td>
+                        <td>
+                            ${data.status === 'Pending' ? 
+                            `<button class="btn-action btn-approve" onclick="updateStatus('${docSnap.id}', 'Completed')">Approve</button>
+                             <button class="btn-action btn-reject" onclick="updateStatus('${docSnap.id}', 'Rejected')">Reject</button>` : '---'}
+                        </td>
+                    </tr>`;
+                    table.innerHTML += row;
+                });
+            });
+
+            // Load Users
+            onSnapshot(collection(db, "users"), (snapshot) => {
+                const table = document.getElementById('user-table');
+                table.innerHTML = "";
+                snapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    const row = `<tr>
+                        <td>${data.email}</td>
+                        <td>$${data.balance.toFixed(3)}</td>
+                        <td>
+                            <button class="btn-action btn-reject" onclick="deleteUser('${docSnap.id}')">Delete</button>
+                        </td>
+                    </tr>`;
+                    table.innerHTML += row;
+                });
+            });
+        }
+
+        // Global functions for window access
+        window.updateStatus = async (id, status) => {
+            if(confirm(`Are you sure you want to ${status}?`)) {
+                await updateDoc(doc(db, "withdrawals", id), { status: status });
+            }
+        };
+
+        window.deleteUser = async (id) => {
+            if(confirm("User ডিলিট করলে তার ব্যালেন্সও মুছে যাবে। আপনি কি নিশ্চিত?")) {
+                await deleteDoc(doc(db, "users", id));
+            }
+        };
+    </script>
+</body>
+</html>
